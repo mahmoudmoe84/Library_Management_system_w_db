@@ -19,9 +19,9 @@ A simple Python library management system with database integration.
 
 2. **Installation**
    ```bash
-   git clone <your-repo-url>
+   git clone git@github.com:mahmoudmoe84/Library_Management_system_w_db.git
    cd Library_Management_system_w_db
-   uv sync  # or pip install -r requirements.txt
+   uv sync
    ```
 
 3. **Database Configuration**
