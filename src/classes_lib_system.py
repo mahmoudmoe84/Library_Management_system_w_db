@@ -1,11 +1,4 @@
 import random
-import sys
-import os
-
-# # Add the parent directory to the Python path to find the db module
-# parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# sys.path.insert(0, parent_dir)
-
 from db import get_connection
 
 class Library:
@@ -14,9 +7,6 @@ class Library:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            # Initialize attributes only once
-            cls._instance.books = {}
-            cls._instance.users = {}
         return cls._instance
     
     def _validate_input(self, value, name):
@@ -67,43 +57,49 @@ class Library:
             if conn:
                 conn.close()
 
-    def generate_random_id(self):
-        conn = get_connection()
-        cur = conn.cursor()
-        user_id = f'{random.randint(0,999999):06d}'
-        cur.execute('select user_id from user where user_id=%s',(user_id,))
-        row = cur.fetchone()
-        if row is None:
-            conn.close()
-            return user_id
+    # def generate_random_id(self):
+    #     conn = get_connection()
+    #     cur = conn.cursor()
+    #     user_id = f'{random.randint(0,999999):06d}'
+    #     cur.execute('select user_id from user where user_id=%s',(user_id,))
+    #     row = cur.fetchone()
+    #     if row is None:
+    #         conn.close()
+    #         return user_id
         
     def register_new_user(self, user_name):
         # Validate input
         user_name = self._validate_input(user_name, "User name")
         conn = get_connection()
         cur = conn.cursor()
-        cur.execute('select user_id from user where user_id=%s',(user_id,))
+        cur.execute('select user_id from user where name=%s',(user_name,))
         row = cur.fetchone()
-        
         if row:
             print(f"User {user_name} already exists in the system with user_id ={row[0]}")
             conn.close()
-            
-        user_id = self.generate_random_id()
-        cur.execute('insert into user (name,user_id) values (%s,%s)',(user_name,user_id))
+            return
+        cur.execute('insert into user (name) values (%s)',(user_name,))
         conn.commit()
+        new_id =cur.lastrowid
         conn.close()
-    
+        print(f"Registered new user with user_name {user_name} and user_id {new_id}")
+        
     def find_book(self, book_title):
         # Validate input
         book_title = self._validate_input(book_title, "Book title")
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute('select book_id , title ,num_copies,on_loan from book where title=%s',(book_title,))
+        book_row = cur.fetchone()
+        if book_row is None:
+            print(f"Book {book_title} Doesn't exist in the library")
+            conn.close()
+            return
+        book_id, title, num_copies, on_loan = book_row
+        available_copies = num_copies - on_loan
+        print(f"book {title} exists and there are {available_copies} available copies")
+        conn.close()
         
-        try:
-            available_copies = self.books[book_title][1] - self.books[book_title][2]
-            print(f"book {book_title} is authored by {self.books[book_title][0]} and has {available_copies} copies available")
-        except KeyError:
-            print(f"Book title doesn't exist, returns Error")
-    
     def borrow_book(self, book_title, user_name):
         # Validate inputs
         book_title = self._validate_input(book_title, "Book title")
@@ -161,19 +157,37 @@ class Library:
         # Validate inputs
         book_title = self._validate_input(book_title, "Book title")
         user_name = self._validate_input(user_name, "User name")
-        
-        if user_name not in self.users:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("select user_id, name from user where name=%s",(user_name,))
+        name_row = cur.fetchone()
+        if name_row is None:
             print(f"User {user_name} not in the system")
+            conn.close()
             return
-        if book_title not in self.books:
+        cur.execute('select book_id,title from book where title=%s',(book_title,))
+        book_row = cur.fetchone()
+        if book_row is None:
             print(f"Book {book_title} not in the system")
+            conn.close()
             return
-        if book_title not in self.users[user_name][1]:
-            print(f'User {user_name} doesn\'t have the book')
+        book_id = book_row[0]
+        user_id = name_row[0]
+        cur.execute("""select loan_id,user_id,book_id,returned from loan where user_id=%s and
+            book_id=%s""",(user_id,book_id))
+        loand_row = cur.fetchone()
+        if loand_row is None:
+            print(f'Book {book_title} is not on loan')
+            conn.close()
             return
-        
-        self.books[book_title][2] -= 1
-        self.users[user_name][1].remove(book_title)
-        print(f"User {user_name} returned book {book_title} successfully")
-        
+        if loand_row[3] ==True:
+            print(f"Book {book_title} is already returned by {user_name}")
+            conn.close()
+            return
+        loan_id =loand_row[0]
+        cur.execute("update loan set return_date=curdate() , returned=true where loan_id=%s",(loan_id,))
+        cur.execute('update book set on_loan = on_loan-1 where book_id=%s',(book_id,))
+        conn.commit()
+        conn.close()
+        print(f'Book {book_title} has been returned to the library user {user_name}')
                             
