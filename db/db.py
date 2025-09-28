@@ -1,9 +1,9 @@
 import mysql.connector
-
+from config import settings
 def get_connection():
     return mysql.connector.connect(
-        host='localhost',
-        user = 'root',
-        password = 'adminadmin',
-        database = 'library_db'
+        host=settings.DB_HOST,
+        user=settings.DB_USER,
+        password=settings.DB_PASSWORD,
+        database=settings.DB_DATABASE
     )
