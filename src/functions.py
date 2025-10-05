@@ -24,4 +24,5 @@ def print_selection_list():
     print("4- Borrow Book")
     print("5- Return Book")
     print("6- Borrowed Books")
-    print('7- Exit')
+    print("7-use smart search via llm")
+    print('8- Exit')

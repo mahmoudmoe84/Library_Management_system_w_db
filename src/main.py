@@ -2,6 +2,41 @@ import random
 from classes_lib_system import Library
 from functions import continue_exit_return_to_main , print_selection_list
 
+from llm_service import generate_sql_from_question
+from db.db_connection import execute_read_query , get_db_schema
+import json
+
+
+def handle_smart_search():
+    """
+    Manager the workflow for the natural lanuage search feature
+    """
+    question = input("\n Ask anything about the library (e.g/, 'who has borrowed books?'):\n")
+    
+    print('Fetching databse schema for the llm....')
+    db_schema = get_db_schema()
+    if not db_schema:
+        print("could not fetch databse shcema. Aborting")
+        return
+    sql_query = generate_sql_from_question(question,db_schema)
+    
+    if not sql_query:
+        print('could not generate sql query please try another question')
+        return
+    
+    print(f"\n Generated SQL: {sql_query}")
+    results = execute_read_query(sql_query)
+    
+    print("\n Query Results:")
+    if results:
+        for row in results:
+            print(json.dumps(row,indent=2,default=str))
+    elif results == []:
+        print("No Records found that match your question")
+
+
+
+
 def main():
     library = Library()  # This will always return the same instance
     print_selection_list()
@@ -84,8 +119,15 @@ def main():
                 break
             elif user_choice =="continue":
                 print_selection_list()
-                
-        if choice ==7:
+        if choice == 7:
+            handle_smart_search()
+            user_choice = continue_exit_return_to_main()
+            if user_choice =="exit":
+                break
+            elif user_choice =="continue":
+                print_selection_list()
+        
+        if choice ==8:
             break
 
 if __name__ == "__main__":
